@@ -930,7 +930,7 @@ async def create_observations(
                     run_id=run_id,
                     parent_category=parent_category,
                 ):
-                    embedding = await embedding_client.embed(obs.content)
+                    embedding = await embedding_client.embed(obs.content, as_query=False)
             except Exception as e:
                 logger.warning(
                     "Error embedding observation content for level '%s': %s",

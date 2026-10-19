@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
@@ -773,8 +774,18 @@ class EmbeddingClient:
             settings.EMBEDDING.resolve_encoding_format(),
         )
 
-    async def embed(self, query: str) -> list[float]:
-        """Embed a single query string."""
+    async def embed(self, query: str, *, as_query: bool = True) -> list[float]:
+        """Embed a single query string.
+
+        Local patch (query-instruction): instruction-tuned embedders such as
+        Qwen3-Embedding expect search queries as ``Instruct: <task>\nQuery: <text>``
+        while stored documents stay plain. Set LOCAL_EMBED_QUERY_INSTRUCTION to the
+        task text to enable; unset/empty keeps upstream behaviour. Callers embedding
+        stored content (not a search) pass ``as_query=False``.
+        """
+        instruction = os.environ.get("LOCAL_EMBED_QUERY_INSTRUCTION", "").strip()
+        if as_query and instruction:
+            query = f"Instruct: {instruction}\nQuery: {query}"
         return await self._get_client().embed(query)
 
     async def simple_batch_embed(
