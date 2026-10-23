@@ -249,6 +249,7 @@ class HonchoMemoryProvider(DialecticMixin, MemoryProvider):
             self._query_rewrite_enabled = cfg.query_rewrite
             self._FIRST_TURN_BASE_TIMEOUT = cfg.first_turn_base_wait
             self._FIRST_TURN_DIALECTIC_CAP = cfg.first_turn_dialectic_wait
+            self._first_turn_dialectic = getattr(cfg, "first_turn_dialectic", True)
             self._dialectic_depth = max(1, min(cfg.dialectic_depth, 3))
             if cfg.reasoning_level_cap in self._LEVEL_ORDER:
                 self._reasoning_level_cap = cfg.reasoning_level_cap
@@ -549,6 +550,10 @@ class HonchoMemoryProvider(DialecticMixin, MemoryProvider):
         if prewarm_landed and self._last_dialectic_turn == -999:
             self._last_dialectic_turn = self._turn_count
         if self._last_dialectic_turn != -999 or not query:
+            return
+        if not getattr(self, "_first_turn_dialectic", True):
+            # Local patch (firstTurnDialectic false): leave the cadence unset so queue_prefetch fires after this turn.
+            logger.debug("Honcho first-turn dialectic deferred to turn 2 (firstTurnDialectic false)")
             return
 
         dia_wait = self._first_turn_wait(self._FIRST_TURN_DIALECTIC_CAP)

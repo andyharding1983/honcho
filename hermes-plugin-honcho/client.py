@@ -331,6 +331,9 @@ def _behavior_fields(look: _HostLookup, explicitly_configured: bool) -> dict[str
         # Local patch: false = no generic dialectic prewarm at session init (the first-turn dialectic on
         # the user's actual message still runs; set firstTurnDialecticWait 0 to keep it non-blocking).
         "dialectic_prewarm": look.flag("dialecticPrewarm", default=True),
+        # Local patch: false = turn 1 starts no dialectic (it would contend with the cold first prefill);
+        # the post-turn queue fires the first run once turn 1 has replied, so it is ready for turn 2.
+        "first_turn_dialectic": look.flag("firstTurnDialectic", default=True),
         # Local patch: true = a failed/timed-out run waits a full cadence like a successful one
         # (upstream retries on the very next turn, which caused call storms on a slow backend).
         "dialectic_failure_counts_as_turn": look.flag("dialecticFailureCountsAsTurn", default=False),
@@ -397,6 +400,7 @@ class HonchoClientConfig:
     dialectic_cadence: int = 1  # min turns between dialectic prefetches
     auto_dialectic: bool = True  # local patch: false disables prewarm/first-turn/cadence dialectic
     dialectic_prewarm: bool = True  # local patch: false = skip the session-init prewarm only
+    first_turn_dialectic: bool = True  # local patch: false = first dialectic fires after turn 1, for turn 2
     dialectic_failure_counts_as_turn: bool = False  # local patch: failed runs advance the cadence
     context_max_conclusions: int | None = None  # local patch: peer.context(max_conclusions=...)
     context_search_top_k: int | None = None  # local patch: peer.context(search_top_k=...) when a query is given
