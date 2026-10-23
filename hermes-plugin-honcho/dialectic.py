@@ -68,12 +68,19 @@ class DialecticMixin:
         """Start a background dialectic run that publishes into the pending-result slot. Only a
         non-empty result advances ``_last_dialectic_turn`` (so empty returns retry next turn) and
         resets the empty streak; failures widen the backoff."""
+        if self._config is not None and not getattr(self._config, "auto_dialectic", True):
+            # Local patch (honcho-auto-dialectic): automatic dialectic is off (autoDialectic: false in
+            # honcho.json). Return an unstarted no-op thread; explicit honcho_reasoning is unaffected.
+            logger.debug("Honcho %s skipped: autoDialectic is false", log_label)
+            return threading.Thread(target=lambda: None, name=thread_name)
         def _run() -> None:
             try:
                 r = self._run_dialectic_depth(query, use_query_rewrite=use_query_rewrite)
             except Exception as exc:
                 logger.debug("Honcho %s failed: %s", log_label, exc)
                 self._note_dialectic_failure(exc)
+                if self._config is not None and getattr(self._config, "dialectic_failure_counts_as_turn", False):
+                    self._last_dialectic_turn = fired_at  # local patch: no retry until the next cadence
                 return
             if r and r.strip():
                 with self._prefetch_lock:

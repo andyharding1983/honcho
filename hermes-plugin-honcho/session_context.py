@@ -86,6 +86,15 @@ class SessionContextMixin:
             return getter(**self._target_kwargs(target)) if getter else None
         return self._normalize_card(self._authed_call("peer card fetch", _get_card))
 
+    def _context_limit_kwargs(self, search_query: str | None) -> dict[str, Any]:
+        """Local patch: Honcho context caps from honcho.json (contextMaxConclusions / contextSearchTopK)."""
+        cfg, out = getattr(self, "_config", None), {}
+        if cfg is not None and getattr(cfg, "context_max_conclusions", None):
+            out["max_conclusions"] = max(1, min(100, int(cfg.context_max_conclusions)))
+        if search_query and cfg is not None and getattr(cfg, "context_search_top_k", None):
+            out["search_top_k"] = max(1, min(100, int(cfg.context_search_top_k)))
+        return out
+
     def _fetch_peer_context(
         self, peer_id: str, search_query: str | None = None, *, target: str | None = None,
     ) -> dict[str, Any]:
@@ -95,6 +104,7 @@ class SessionContextMixin:
         context_kwargs: dict[str, Any] = self._target_kwargs(target)
         if search_query is not None:
             context_kwargs["search_query"] = search_query
+        context_kwargs.update(self._context_limit_kwargs(search_query))  # local patch
         peer = lambda: self._get_or_create_peer(peer_id)  # noqa: E731
         failed = "Direct %s failed for '%%s': %%s"
         ctx = self._guarded_authed(
@@ -148,6 +158,7 @@ class SessionContextMixin:
                 # or failed current-query lookup must not silently become generic recall.
                 ctx = self._authed_call("peer context fetch", lambda: self._get_or_create_peer(observer_peer_id).context(
                     search_query=user_message, target=target_peer_id or session.user_peer_id,
+                    **self._context_limit_kwargs(user_message),  # local patch
                 ))
                 result["representation"] = getattr(ctx, "representation", None) or getattr(ctx, "peer_representation", None) or ""
                 result["card"] = "\n".join(self._normalize_card(getattr(ctx, "peer_card", None)))

@@ -326,6 +326,18 @@ def _behavior_fields(look: _HostLookup, explicitly_configured: bool) -> dict[str
         "injection_frequency": look.pick("injectionFrequency", "every-turn"),
         "context_cadence": look.parsed("contextCadence", int, 1),
         "dialectic_cadence": look.parsed("dialecticCadence", int, 1),
+        # Local patch (honcho-auto-dialectic): false = never spawn automatic dialectic runs.
+        "auto_dialectic": look.flag("autoDialectic", default=True),
+        # Local patch: false = no generic dialectic prewarm at session init (the first-turn dialectic on
+        # the user's actual message still runs; set firstTurnDialecticWait 0 to keep it non-blocking).
+        "dialectic_prewarm": look.flag("dialecticPrewarm", default=True),
+        # Local patch: true = a failed/timed-out run waits a full cadence like a successful one
+        # (upstream retries on the very next turn, which caused call storms on a slow backend).
+        "dialectic_failure_counts_as_turn": look.flag("dialecticFailureCountsAsTurn", default=False),
+        # Local patch: caps passed to Honcho peer.context() (max_conclusions / search_top_k). Unset =
+        # server default (up to 100 conclusions), which overflowed Hermes' 10k-char hook spill limit.
+        "context_max_conclusions": look.parsed("contextMaxConclusions", int, None),
+        "context_search_top_k": look.parsed("contextSearchTopK", int, None),
         "query_rewrite": look.flag("queryRewrite", default=False),
         "first_turn_base_wait": look.parsed("firstTurnBaseWait", lambda v: max(0.0, float(v)), 3.0),
         "first_turn_dialectic_wait": look.parsed("firstTurnDialecticWait", lambda v: max(0.0, float(v)), 2.0),
@@ -383,6 +395,11 @@ class HonchoClientConfig:
     injection_frequency: str = "every-turn"  # or "first-turn"
     context_cadence: int = 1  # min turns between peer.context() calls
     dialectic_cadence: int = 1  # min turns between dialectic prefetches
+    auto_dialectic: bool = True  # local patch: false disables prewarm/first-turn/cadence dialectic
+    dialectic_prewarm: bool = True  # local patch: false = skip the session-init prewarm only
+    dialectic_failure_counts_as_turn: bool = False  # local patch: failed runs advance the cadence
+    context_max_conclusions: int | None = None  # local patch: peer.context(max_conclusions=...)
+    context_search_top_k: int | None = None  # local patch: peer.context(search_top_k=...) when a query is given
     query_rewrite: bool = False  # rewrite the user message into a retrieval query (one aux LLM call)
     # Bounded synchronous waits on turn 1, seconds; 0 = fully async first turn.
     first_turn_base_wait: float = 3.0

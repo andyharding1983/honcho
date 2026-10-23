@@ -382,7 +382,11 @@ class HonchoMemoryProvider(DialecticMixin, MemoryProvider):
 
         # Generic dialectic prewarm is incompatible with latest-message query rewriting,
         # which needs the first substantive user message.
-        if self._recall_mode in {"context", "hybrid"} and not self._recall_sync:
+        if not getattr(self._config, "dialectic_prewarm", True):
+            # Local patch: no generic prewarm at session init. The first-turn dialectic (on the
+            # user's real first message, non-blocking with firstTurnDialecticWait 0) still runs.
+            logger.debug("Honcho dialectic prewarm skipped (dialecticPrewarm false): %s", self._session_key)
+        elif self._recall_mode in {"context", "hybrid"} and not self._recall_sync:
             if self._query_rewriter is None or not self._query_rewrite_enabled:
                 self._spawn_dialectic(_PREWARM_QUERY, thread_name="honcho-prewarm-dialectic", fired_at=0,
                                       log_label="dialectic prewarm", use_query_rewrite=False)
